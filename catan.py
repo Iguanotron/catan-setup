@@ -57,6 +57,76 @@ class Tile(object):
 		grid[row+5][col+1:col+12] =  "\\ {:^7s} /".format('*'*self.pips())
 		grid[row+6][col+2:col+11] =   "\\_______/"
 
+class Harbor(object):
+	"""Represents a Catan harbor tile"""
+
+	def __init__(self, direction="N", resource="?", ratio=None):
+		self.direction = direction
+		self.resource = resource
+		if ratio:
+			self.ratio = ratio
+		elif resource == "?":
+			self.ratio = (3, 1)
+		else:
+			self.ratio = (2, 1)
+
+	def __repr__(self):
+		return "Harbor({0:s}, {1:s}, {2})".format(repr(self.direction),
+		                                          repr(self.resource),
+		                                          self.ratio)
+
+	def draw(self, row, col, grid):
+		"""
+		Draw self onto the character grid, with upper-left corner (row, col).
+		A 13 (rows) by 7 (columns) space is required to draw a Harbor.
+		Harbors are drawn in the following format, where the % marks the
+		upper-left corner and is not drawn. This example has a direction
+		of NE:
+
+			%       __
+			        \ \
+			         \ \
+			     -:-  \ \
+			   ------- \/
+			            
+			           
+
+		"""
+		grid[row+3][col+3:col+10] = "{0:>3d}:{1:<3d}".format(*self.ratio)
+		grid[row+4][col+3:col+10] = "{:^7s}".format(self.resource)
+
+		if self.direction == "N":
+			grid[row  ][col+3:col+10] =  "_______"
+			grid[row+1][col+2:col+11] = "/_______\\"			
+		elif self.direction == "NE":
+			grid[row  ][col+8 :col+10] = "__"
+			grid[row+1][col+8 :col+11] = "\\ \\"
+			grid[row+2][col+9 :col+12] =  "\\ \\"
+			grid[row+3][col+10:col+13] =   "\\ \\"
+			grid[row+4][col+11:col+13] =    "\\/"
+		elif self.direction == "SE":
+			grid[row+3][col+11:col+13] =    "/\\"
+			grid[row+4][col+10:col+13] =   "/ /"
+			grid[row+5][col+9 :col+12] =  "/ /"
+			grid[row+6][col+8 :col+11] = "/_/"
+		elif self.direction == "S":
+			grid[row+5][col+2:col+11] = "_________"
+			grid[row+6][col+2:col+11] = "\\_______/"
+		elif self.direction == "SW":
+			grid[row+3][col  :col+2] = "/\\"
+			grid[row+4][col  :col+3] = "\\ \\"
+			grid[row+5][col+1:col+4] =  "\\ \\"
+			grid[row+6][col+2:col+5] =   "\\_\\"
+		elif self.direction == "NW":
+			grid[row  ][col+3:col+5] =    "__"
+			grid[row+1][col+2:col+5] =   "/ /"
+			grid[row+2][col+1:col+4] =  "/ /"
+			grid[row+3][col  :col+3] = "/ /"
+			grid[row+4][col  :col+2] = "\\/"
+		else:
+			pass # error
+
+
 
 class GameBoard(object):
 	"""Represents a Catan game board."""
