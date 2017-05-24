@@ -54,7 +54,20 @@ Numbering Tiles....Done.
                                                                          
 ```
 
-## Board layout file format (.catanboard)
+## Adding scenarios
+Adding a scenario `foo` requires adding files `foo.catanboard` and 
+`foo.catanqtys` to the `scenarios/` folder. To be consistent, the following are 
+required:
+1. The total amount of terrain instances specified in the `.catanqtys` file must
+   be at least the number of random terrain tiles (`T`) in the `.catanboard` file.
+2. The total amount of harbor instances specified in the `.catanqtys` file must
+   be at least the number of random harbors (`N`, `S`, `e`, `E`, `w`, `W`) in the
+   `.catanboard` file.
+3. The total amount of roll tokens specified in the `.catanqtys` file must be
+   at least the number of numberable tiles (all terrain but Desert and Ocean) in
+   the `.catanboard` file.
+
+## Board layout file format (`.catanboard`)
 Tile positions on the hex grid are given in a checkerboard pattern.
 For example, this is the default board:
 ```
@@ -114,7 +127,7 @@ Neighbors of a tile are found in the indicated relative positions to it:
 |D     |tile, desert     |
 |O     |tile, ocean      |
 
-## Randomization parameter file format (.catanqtys)
+## Randomization parameter file format (`.catanqtys`)
 Uses JSON format. The required fields are:
 ### `terrain`
 Associates quantities with terrain names
