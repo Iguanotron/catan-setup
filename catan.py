@@ -3,8 +3,41 @@
 import random
 
 
-class Tile(object):
+class NotDrawableError(Exception):
+	pass
+
+
+class HexStamp(object):
+	"""An object drawable on a hex grid"""
+
+	height = 0
+	width  = 0
+
+	def draw(self, row, col, grid):
+		raise NotDrawableError
+
+
+class EmptySpace(HexStamp):
+	"""An empty space which is not drawn on the hex grid"""
+
+	height = 0
+	width  = 0
+
+	def repr(self):
+		return "EmptySpace()"
+
+	def draw(self, row, col, grid):
+		pass
+
+
+EMPTY = EmptySpace()
+
+
+class Tile(HexStamp):
 	"""Represents a single Catan tile."""
+
+	height = 7
+	width  = 13
 
 	roll_pips = {
 		2:  1,
@@ -36,7 +69,7 @@ class Tile(object):
 	def draw(self, row, col, grid):
 		"""
 		Draw self onto the character grid, with upper-left corner (row, col).
-		A 13 (rows) by 7 (columns) space is required to draw a Tile.
+		A 13 (columns) by 7 (rows) space is required to draw a Tile.
 		Tiles are drawn in the following format, where the % marks the
 		upper-left corner and is not drawn:
 
@@ -57,8 +90,12 @@ class Tile(object):
 		grid[row+5][col+1:col+12] =  "\\ {:^7s} /".format('*'*self.pips())
 		grid[row+6][col+2:col+11] =   "\\_______/"
 
+
 class Harbor(object):
 	"""Represents a Catan harbor tile"""
+
+	height = 7
+	width  = 13
 
 	def __init__(self, direction="N", resource="?", ratio=None):
 		self.direction = direction
@@ -78,7 +115,7 @@ class Harbor(object):
 	def draw(self, row, col, grid):
 		"""
 		Draw self onto the character grid, with upper-left corner (row, col).
-		A 13 (rows) by 7 (columns) space is required to draw a Harbor.
+		A 13 (columns) by 7 (rows) space is required to draw a Harbor.
 		Harbors are drawn in the following format, where the % marks the
 		upper-left corner and is not drawn. This example has a direction
 		of NE:
@@ -125,7 +162,6 @@ class Harbor(object):
 			grid[row+4][col  :col+2] = "\\/"
 		else:
 			pass # error
-
 
 
 class GameBoard(object):
@@ -235,7 +271,8 @@ class GameBoard(object):
 			print(''.join(row))
 
 
-board = GameBoard()
-board.number_tiles()
-board.print()
-print()
+if __name__ == '__main__':
+	board = GameBoard()
+	board.number_tiles()
+	board.print()
+	print()
