@@ -85,7 +85,7 @@ E T T W
    N
 ```
 Alternating tiles in a checkerboard pattern are ignored. Here are the
-ignored tiles in the above board, marked with underscores):
+ignored tiles in the above board, marked with underscores:
 ```
  _S_S_ 
 _ _T_ _
@@ -129,9 +129,9 @@ Neighbors of a tile are found in the indicated relative positions to it:
 
 ## Randomization parameter file format (`.catanqtys`)
 Uses JSON format. The required fields are:
-### `terrain`
+#### `terrain`
 Associates quantities with terrain names
-### `harbors`
+#### `harbors`
 Associates quantities with harbor resources (including "?")
-### `rolls`
+#### `rolls`
 Associates quantities with roll tokens
