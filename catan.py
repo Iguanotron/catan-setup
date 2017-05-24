@@ -1,29 +1,34 @@
 #!/usr/bin/env python3
 
-import random
+import random, json
 
+###########################################################
+#### Drawable objects (HexTiles)
+###########################################################
 
 class NotDrawableError(Exception):
 	pass
 
 
-class HexStamp(object):
+class HexTile(object):
 	"""An object drawable on a hex grid"""
 
 	height = 0
 	width  = 0
 
+	numbered = False
+
 	def draw(self, row, col, grid):
 		raise NotDrawableError
 
 
-class EmptySpace(HexStamp):
+class EmptySpace(HexTile):
 	"""An empty space which is not drawn on the hex grid"""
 
 	height = 0
 	width  = 0
 
-	def repr(self):
+	def __repr__(self):
 		return "EmptySpace()"
 
 	def draw(self, row, col, grid):
@@ -33,11 +38,13 @@ class EmptySpace(HexStamp):
 EMPTY = EmptySpace()
 
 
-class Tile(HexStamp):
-	"""Represents a single Catan tile."""
+class TerrainTile(HexTile):
+	"""Represents a single Catan terrain tile."""
 
 	height = 7
 	width  = 13
+
+	numbered = True
 
 	roll_pips = {
 		2:  1,
@@ -58,19 +65,16 @@ class Tile(HexStamp):
 
 	def pips(self):
 		"""Return the number of pips on this tile, based on its roll value."""
-		try:
-			return self.roll_pips[self.roll]
-		except KeyError:
-			return 0
+		return self.roll_pips.get(self.roll, 0)
 		
 	def __repr__(self):
-		return "Tile({:s}, {:s})".format(repr(self.terrain), repr(self.roll))
+		return "TerrainTile({:s}, {:s})".format(repr(self.terrain), repr(self.roll))
 
 	def draw(self, row, col, grid):
 		"""
 		Draw self onto the character grid, with upper-left corner (row, col).
-		A 13 (columns) by 7 (rows) space is required to draw a Tile.
-		Tiles are drawn in the following format, where the % marks the
+		A 13 (columns) by 7 (rows) space is required to draw a TerrainTile.
+		TerrainTiles are drawn in the following format, where the % marks the
 		upper-left corner and is not drawn:
 
 			%  _______
@@ -91,7 +95,7 @@ class Tile(HexStamp):
 		grid[row+6][col+2:col+11] =   "\\_______/"
 
 
-class Harbor(object):
+class Harbor(HexTile):
 	"""Represents a Catan harbor tile"""
 
 	height = 7
@@ -99,10 +103,13 @@ class Harbor(object):
 
 	def __init__(self, direction="N", resource="?", ratio=None):
 		self.direction = direction
-		self.resource = resource
+		self.setResource(resource)
 		if ratio:
 			self.ratio = ratio
-		elif resource == "?":
+
+	def setResource(self, resource):
+		self.resource = resource
+		if resource == "?":
 			self.ratio = (3, 1)
 		else:
 			self.ratio = (2, 1)
@@ -164,63 +171,165 @@ class Harbor(object):
 			pass # error
 
 
+###########################################################
+#### File input
+###########################################################
+
+
+def read_board(filename):
+	"""
+	Reads a catan board from a file.
+	If the file does not exist, raises FileNotFoundError.
+	If the file is not properly formatted, raises ValueError.
+	"""
+	file = open(filename)
+
+	random_terrain_tiles = []
+	random_harbors = []
+
+	def make_tile(row, col, c):
+		"""
+		Make a tile based on the given character at the given position in
+		the checkerboard grid.
+		"""
+		if (row + col) % 2 != 0:
+			# Ignore characters on alternating spaces in a checkerboard pattern
+			return EMPTY
+	
+		def make_random_terrain_tile():
+			t = TerrainTile()
+			random_terrain_tiles.append(t)
+			return t
+	
+		def make_random_harbor(direction):
+			h = Harbor(direction)
+			random_harbors.append(h)
+			return h
+
+		def BadFormat():
+			raise ValueError
+	
+		return {
+			' ': lambda: EMPTY,
+			'\n': lambda: EMPTY,
+			'T': lambda: make_random_terrain_tile(),
+			'N': lambda: make_random_harbor('N'),
+			'S': lambda: make_random_harbor('S'),
+			'e': lambda: make_random_harbor('SE'),
+			'E': lambda: make_random_harbor('NE'),
+			'w': lambda: make_random_harbor('SW'),
+			'W': lambda: make_random_harbor('NW'),
+			'H': lambda: TerrainTile(terrain='Hills'),
+			'P': lambda: TerrainTile(terrain='Pasture'),
+			'F': lambda: TerrainTile(terrain='Forest'),
+			'f': lambda: TerrainTile(terrain='Fields'),
+			'M': lambda: TerrainTile(terrain='Mountains'),
+			'D': lambda: TerrainTile(terrain='Desert'),
+			'O': lambda: TerrainTile(terrain='Ocean')
+		}.get(c, lambda: BadFormat())()
+
+	hexes = [[make_tile(row, col, c) for col, c in enumerate(line)]
+	         for row, line in enumerate(file)]
+
+	return (hexes, random_terrain_tiles, random_harbors)
+
+
+def read_random_qtys(filename):
+	"""
+	Reads a set of random generation parameters from a file.
+	If the file does not exist, raises FileNotFoundError.
+	If the file is improperly formatted, raises ValueError.
+	"""
+	file = open(filename)
+	data = json.load(file)
+	try:
+		terrain_quantities = data['terrain']
+		harbor_res_quantities = data['harbors']
+		roll_quantities = {int(roll): qty
+		                   for roll, qty in data['rolls'].items()}
+		return (terrain_quantities, harbor_res_quantities, roll_quantities)
+	except KeyError:
+		raise ValueError
+
+
+def load_scenario(name):
+	try:
+		return (*read_board('scenarios/{}.catanboard'.format(name)),
+		        *read_random_qtys('scenarios/{}.catanqtys'.format(name)))
+	except FileNotFoundError:
+		quit('File Not Found')
+	except ValueError:
+		quit('Invalid File Format')
+
+
+###########################################################
+#### Game board operations
+###########################################################
+
+
 class GameBoard(object):
 	"""Represents a Catan game board."""
 
-	col_lengths = [3, 4, 5, 4, 3] # in hexes
-	offsets = [2, 1, 0, 1, 2] # in half-hex increments
-	tile_quantities = {
-		"Pasture":   4,
-		"Fields":    4,
-		"Forest":    4,
-		"Mountains": 3,
-		"Hills":     3,
-		"Desert":    1
-	}
-	roll_quantities = { # quantities of each roll number
-		2:  1,
-		3:  2,
-		4:  2,
-		5:  2,
-		6:  2,
-		8:  2,
-		9:  2,
-		10: 2,
-		11: 2,
-		12: 1
-	}
 	pip_threshold = 5 # tiles with more pips than this cannot be neighbors
 
-	def __init__(self):
-		tiles = [Tile(terrain)
-		         for terrain, qty in self.tile_quantities.items()
-		         for i in range(qty)]
-		random.shuffle(tiles)
+	def __init__(self, hexes, random_terrain_tiles=[], random_harbors=[],
+		         terrain_quantities={}, harbor_res_quantities={},
+		         roll_quantities={}):
+		self.board = hexes
+		
+		self.random_terrain_tiles = random_terrain_tiles
+		self.random_harbors       = random_harbors
 
-		# board: the game board, stored as columns of Tiles
-		self.board = [[tiles.pop(0) for i in range(x)]
-		              for x in self.col_lengths]
+		self.terrain_quantities    = terrain_quantities
+		self.harbor_res_quantities = harbor_res_quantities
+		self.roll_quantities       = roll_quantities
 
-	def number_tiles(self):
+		# Randomize terrain
+		terrains = [terrain
+		            for terrain, qty in terrain_quantities.items()
+		            for i in range(qty)]
+		if len(terrains) != len(random_terrain_tiles):
+			raise ValueError # length mismatch
+
+		random.shuffle(terrains)
+		for tile in random_terrain_tiles:
+			tile.terrain = terrains.pop(0)
+
+		# Randomize harbors
+		harbor_resources = [res
+		                    for res, qty in harbor_res_quantities.items()
+		                    for i in range(qty)]
+		if len(harbor_resources) != len(random_harbors):
+			raise ValueError # length mismatch
+
+		random.shuffle(harbor_resources)
+		for harbor in random_harbors:
+			harbor.setResource(harbor_resources.pop(0))
+
+	def number_tiles(self, verbose=True):
 		"""
 		Number the tiles in self.board, using the roll_quantities with quantities
 		in self.roll_quantities.
 		"""
-		print("Numbering Tiles", end="")
+		if verbose:
+			print("Numbering Tiles", end="")
+		rolls = [roll
+		         for roll, qty in self.roll_quantities.items()
+		         for i in range(qty)]
 		while True:
-			print(".", end="")
-			roll_quantities = [roll
-			                   for roll, qty in self.roll_quantities.items()
-			                   for i in range(qty)]
-			random.shuffle(roll_quantities)
+			if verbose:
+				print(".", end="")
+			rolls_scrambled = rolls[:]
+			random.shuffle(rolls_scrambled)
 
-			for col in self.board:
-				for tile in col:
-					if (tile.terrain != "Desert"):
-						tile.roll = roll_quantities.pop(0)
+			for row in self.board:
+				for tile in row:
+					if tile.numbered and tile.terrain != 'Desert': # TODO change to a new system, wherein there are two terrain tile types, numbered and unnumbered
+						tile.roll = rolls_scrambled.pop(0)
 
 			if self.valid():
-				print("Done.")
+				if verbose:
+					print("Done.")
 				return
 
 
@@ -229,50 +338,61 @@ class GameBoard(object):
 		Returns whether the board numbering is valid, i.e. whether
 		no tiles above the pip threshold are neighbors.
 		"""
-		for col, height in enumerate(self.col_lengths):
-			for row in range(height):
-				if self.board[col][row].pips() >= self.pip_threshold:
-					for cell in self.neighbors(col, row):
-						if cell.pips() >= self.pip_threshold:
-							return False
+		for row, tiles in enumerate(self.board):
+			for col, tile in enumerate(tiles):
+				if tile.numbered and tile.pips() >= self.pip_threshold:
+					for n in self.neighbors(col, row):
+						if n.numbered and n.pips() >= self.pip_threshold:
+							return False					
 		return True
 
+	def tile_at(self, col, row):
+		if row < 0 or row >= len(self.board):
+			return None
+		if col < 0 or col >= len(self.board[row]):
+			return None
+		return self.board[row][col]
+
 	def neighbors(self, col, row):
-		"""Returns a list of neighbors of the tile at the given location."""
-		coords = [(col, row - 1),
-		          (col, row + 1)]
-
-		if col > 0:
-			offset_diff = (self.offsets[col] - self.offsets[col - 1]) / 2
-			coords.extend([(col - 1, row + int(offset_diff - 0.5)),
-			               (col - 1, row + int(offset_diff + 0.5))])
-
-		if col + 1 < len(self.col_lengths):
-			offset_diff = (self.offsets[col] - self.offsets[col + 1]) / 2
-			coords.extend([(col + 1, row + int(offset_diff - 0.5)),
-			               (col + 1, row + int(offset_diff + 0.5))])
-
-		return [self.board[r][c] for (r, c) in coords
-		        if c >= 0 and c < self.col_lengths[r]]
+		"""Returns a generator of neighbors of the tile at the given location."""
+		for (c, r) in [(col, row - 2),
+		               (col, row + 2),
+		               (col - 1, row - 1),
+		               (col - 1, row + 1),
+		               (col + 1, row - 1),
+		               (col + 1, row + 1)]:
+			t = self.tile_at(c, r)
+			if t != None:
+				yield t
 
 	def print(self):
 		"""Prints the board to standard output."""
 
-		cells_tall = max([offset/2 + row_len for (row_len, offset) in zip(self.col_lengths, self.offsets)])
-		cells_wide = len(self.col_lengths)
+		canvas_height = max([tile.height + (row* 3)
+		                     for row, tiles in enumerate(self.board)
+		                     for tile in tiles])
+		canvas_width  = max([tile.width + (col*10)
+		                     for tiles in self.board
+		                     for col, tile in enumerate(tiles)])
 
-		char_grid = [[" " for j in range(10*cells_wide + 3)] for i in range(int(6*cells_tall) + 1)]
+		canvas = [[" " for j in range(canvas_width)]
+		          for i in range(canvas_height)]
 
-		for col, cells in enumerate(self.board):
-			for row, cell in enumerate(cells):
-				cell.draw(row*6 + 3*self.offsets[col], col*10, char_grid)
+		for row, cells in enumerate(self.board):
+			for col, cell in enumerate(cells):
+				cell.draw(row*3, col*10, canvas)
 
-		for row in char_grid:
+		for row in canvas:
 			print(''.join(row))
 
 
+###########################################################
+#### Script body
+###########################################################
+
+
 if __name__ == '__main__':
-	board = GameBoard()
+	board = GameBoard(*load_scenario('default'))
 	board.number_tiles()
 	board.print()
 	print()
