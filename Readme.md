@@ -95,6 +95,24 @@ Neighbors of a tile are found in the indicated relative positions to it:
 * *
  *
 ```
+### Symbol meanings
+|Symbol|Meaning          |
+|------|-----------------|
+|      |empty space      |
+|T     |tile, random     |
+|N     |harbor, north    |
+|S     |harbor, south    |
+|e     |harbor, southeast|
+|E     |harbor, northeast|
+|w     |harbor, southwest|
+|W     |harbor, northwest|
+|H     |tile, hills      |
+|P     |tile, pasture    |
+|F     |tile, forest     |
+|f     |tile, fields     |
+|M     |tile, mountains  |
+|D     |tile, desert     |
+|O     |tile, ocean      |
 
 ## Randomization parameter file format (.catanqtys)
 Uses JSON format. The required fields are:
