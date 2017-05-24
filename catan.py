@@ -288,8 +288,8 @@ class GameBoard(object):
 		terrains = [terrain
 		            for terrain, qty in terrain_quantities.items()
 		            for i in range(qty)]
-		if len(terrains) != len(random_terrain_tiles):
-			raise ValueError # length mismatch
+		if len(terrains) < len(random_terrain_tiles):
+			raise ValueError # bad file format; too few terrains
 
 		random.shuffle(terrains)
 		for tile in random_terrain_tiles:
@@ -299,8 +299,8 @@ class GameBoard(object):
 		harbor_resources = [res
 		                    for res, qty in harbor_res_quantities.items()
 		                    for i in range(qty)]
-		if len(harbor_resources) != len(random_harbors):
-			raise ValueError # length mismatch
+		if len(harbor_resources) < len(random_harbors):
+			raise ValueError # bad file format; too few harbors
 
 		random.shuffle(harbor_resources)
 		for harbor in random_harbors:
@@ -324,8 +324,11 @@ class GameBoard(object):
 
 			for row in self.board:
 				for tile in row:
-					if tile.numbered and tile.terrain != 'Desert': # TODO change to a new system, wherein there are two terrain tile types, numbered and unnumbered
-						tile.roll = rolls_scrambled.pop(0)
+					if tile.numbered and tile.terrain not in ('Desert', 'Ocean'):
+						try:
+							tile.roll = rolls_scrambled.pop(0)
+						except IndexError:
+							raise ValueError # bad file format; too few rolls
 
 			if self.valid():
 				if verbose:
