@@ -12,41 +12,62 @@ Run `python3 catan.py`. Python 3 is required.
 ```
 > ./catan.py
 Numbering Tiles....Done.
-                       _______                       
-                      /       \                      
-                     /         \                     
-             _______/  Pasture  \_______             
-            /       \     5     /       \            
-           /         \  ****   /         \           
-   _______/  Fields   \_______/   Hills   \_______   
-  /       \     8     /       \    12     /       \  
- /         \  *****  /         \    *    /         \ 
-/  Pasture  \_______/  Forest   \_______/  Fields   \
-\    11     /       \     3     /       \     8     /
- \   **    /         \   **    /         \  *****  / 
-  \_______/  Fields   \_______/  Desert   \_______/  
-  /       \     5     /       \     0     /       \  
- /         \  ****   /         \         /         \ 
-/ Mountains \_______/   Hills   \_______/ Mountains \
-\     9     /       \    10     /       \     2     /
- \  ****   /         \   ***   /         \    *    / 
-  \_______/  Fields   \_______/   Hills   \_______/  
-  /       \     6     /       \     6     /       \  
- /         \  *****  /         \  *****  /         \ 
-/  Pasture  \_______/  Forest   \_______/  Pasture  \
-\     9     /       \    10     /       \    11     /
- \  ****   /         \   ***   /         \   **    / 
-  \_______/  Forest   \_______/  Forest   \_______/  
-          \     4     /       \     3     /          
-           \   ***   /         \   **    /           
-            \_______/ Mountains \_______/            
-                    \     4     /                    
-                     \   ***   /                     
-                      \_______/                      
-
+                                                                         
+                                                                         
+                                                                         
+                         3:1     _______     2:1                         
+                          ?     /       \   Brick                        
+                      _________/         \_________                      
+                      \_______/   Hills   \_______/                      
+                      /       \     3     /       \                      
+                     /         \   **    /         \                     
+     3:1   /\_______/ Mountains \_______/  Pasture  \_______/\   2:1     
+      ?   / /       \    12     /       \     3     /       \ \ Wool     
+         / /         \    *    /         \   **    /         \ \         
+        /_/  Fields   \_______/  Forest   \_______/  Fields   \_\        
+          \     8     /       \    11     /       \     9     /          
+           \  *****  /         \   **    /         \  ****   /           
+            \_______/  Pasture  \_______/  Desert   \_______/            
+            /       \    11     /       \     0     /       \            
+           /         \   **    /         \         /         \           
+        __/ Mountains \_______/  Forest   \_______/   Hills   \__        
+        \ \     5     /       \     8     /       \    10     / /        
+         \ \  ****   /         \  *****  /         \   ***   / /         
+     2:1  \ \_______/  Fields   \_______/   Hills   \_______/ /  2:1     
+    Grain  \/       \     4     /       \    10     /       \/ Lumber    
+           /         \   ***   /         \   ***   /         \           
+          / Mountains \_______/  Forest   \_______/  Fields   \          
+          \     4     /       \     2     /       \     6     /          
+           \   ***   /         \    *    /         \  *****  /           
+            \_______/  Pasture  \_______/  Pasture  \_______/            
+                  \ \     6     /       \     5     / /                  
+                   \ \  *****  /         \  ****   / /                   
+               2:1  \ \_______/  Forest   \_______/ /  3:1               
+               Ore   \/       \     9     /       \/    ?                
+                               \  ****   /                               
+                                \_______/                                
+                                /_______\                                
+                                                                         
+                                   3:1                                   
+                                    ?                                    
+                                                                         
+                                                                         
 ```
 
-## Board layout file format (.catanboard)
+## Adding scenarios
+Adding a scenario `foo` requires adding files `foo.catanboard` and 
+`foo.catanqtys` to the `scenarios/` folder. To be consistent, the following are 
+required:
+1. The total amount of terrain instances specified in the `.catanqtys` file must
+   be at least the number of random terrain tiles (`T`) in the `.catanboard` file.
+2. The total amount of harbor instances specified in the `.catanqtys` file must
+   be at least the number of random harbors (`N`, `S`, `e`, `E`, `w`, `W`) in the
+   `.catanboard` file.
+3. The total amount of roll tokens specified in the `.catanqtys` file must be
+   at least the number of numberable tiles (all terrain but Desert and Ocean) in
+   the `.catanboard` file.
+
+## Board layout file format (`.catanboard`)
 Tile positions on the hex grid are given in a checkerboard pattern.
 For example, this is the default board:
 ```
@@ -87,8 +108,26 @@ Neighbors of a tile are found in the indicated relative positions to it:
 * *
  *
 ```
+### Symbol meanings
+|Symbol|Meaning          |
+|------|-----------------|
+|      |empty space      |
+|T     |tile, random     |
+|N     |harbor, north    |
+|S     |harbor, south    |
+|e     |harbor, southeast|
+|E     |harbor, northeast|
+|w     |harbor, southwest|
+|W     |harbor, northwest|
+|H     |tile, hills      |
+|P     |tile, pasture    |
+|F     |tile, forest     |
+|f     |tile, fields     |
+|M     |tile, mountains  |
+|D     |tile, desert     |
+|O     |tile, ocean      |
 
-## Randomization parameter file format (.catanqtys)
+## Randomization parameter file format (`.catanqtys`)
 Uses JSON format. The required fields are:
 ### `terrain`
 Associates quantities with terrain names
