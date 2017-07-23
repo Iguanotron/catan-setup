@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 
-import random, json
+import random
+import json
+
+from asciicanvas import ASCIICanvas
 
 ###########################################################
 #### Drawable objects (HexTiles)
@@ -11,19 +14,19 @@ class NotDrawableError(Exception):
 
 
 class HexTile(object):
-	"""An object drawable on a hex grid"""
+	"""An object drawable on an ASCIICanvas"""
 
 	height = 0
 	width  = 0
 
 	numbered = False
 
-	def draw(self, row, col, grid):
+	def draw(self, row, col, canvas):
 		raise NotDrawableError
 
 
 class EmptySpace(HexTile):
-	"""An empty space which is not drawn on the hex grid"""
+	"""An empty space which is not drawn on the ASCIICanvas"""
 
 	height = 0
 	width  = 0
@@ -31,7 +34,7 @@ class EmptySpace(HexTile):
 	def __repr__(self):
 		return "EmptySpace()"
 
-	def draw(self, row, col, grid):
+	def draw(self, row, col, canvas):
 		pass
 
 
@@ -70,9 +73,9 @@ class TerrainTile(HexTile):
 	def __repr__(self):
 		return "TerrainTile({:s}, {:s})".format(repr(self.terrain), repr(self.roll))
 
-	def draw(self, row, col, grid):
-		"""
-		Draw self onto the character grid, with upper-left corner (row, col).
+	def draw(self, row, col, canvas):
+		r"""
+		Draw self onto the ASCIICanvas, with upper-left corner (row, col).
 		A 13 (columns) by 7 (rows) space is required to draw a TerrainTile.
 		TerrainTiles are drawn in the following format, where the % marks the
 		upper-left corner and is not drawn:
@@ -86,13 +89,15 @@ class TerrainTile(HexTile):
 			  \_______/
 
 		"""
-		grid[row  ][col+3:col+10] =    "_______"
-		grid[row+1][col+2:col+11] =   "/       \\"
-		grid[row+2][col+1:col+12] =  "/         \\"
-		grid[row+3][col  :col+13] = "/ {:^9s} \\".format(self.terrain)
-		grid[row+4][col  :col+13] = "\\ {:^9d} /".format(self.roll)
-		grid[row+5][col+1:col+12] =  "\\ {:^7s} /".format('*'*self.pips())
-		grid[row+6][col+2:col+11] =   "\\_______/"
+		canvas[row:row+self.height, col:col+self.width] = [
+			rb'   _______   ',
+			rb'  /       \  ',
+			rb' /         \ ',
+			r'/ {:^9s} \\'.format(self.terrain).encode('ascii'),
+			r'\ {:^9d} /'.format(self.roll).encode('ascii'),
+			r' \ {:^7s} / '.format('*'*self.pips()).encode('ascii'),
+			rb'  \_______/  ',
+		]
 
 
 class Harbor(HexTile):
@@ -119,9 +124,9 @@ class Harbor(HexTile):
 		                                          repr(self.resource),
 		                                          self.ratio)
 
-	def draw(self, row, col, grid):
-		"""
-		Draw self onto the character grid, with upper-left corner (row, col).
+	def draw(self, row, col, canvas):
+		r"""
+		Draw self onto the canvas, with upper-left corner (row, col).
 		A 13 (columns) by 7 (rows) space is required to draw a Harbor.
 		Harbors are drawn in the following format, where the % marks the
 		upper-left corner and is not drawn. This example has a direction
@@ -136,45 +141,83 @@ class Harbor(HexTile):
 			           
 
 		"""
-		grid[row+3][col+3:col+10] = "{0:>3d}:{1:<3d}".format(*self.ratio)
-		grid[row+4][col+3:col+10] = "{:^7s}".format(self.resource)
-
+		canvas[row+3:row+5, col+3:col+11] = [
+			r'{0:>3d}:{1:<3d}'.format(*self.ratio).encode('ascii'),
+			r'{:^7s}'.format(self.resource).encode('ascii'),
+		]
 		if self.direction == "N":
-			grid[row  ][col+3:col+10] =  "_______"
-			grid[row+1][col+2:col+11] = "/_______\\"			
+			canvas[row:row+2, col+2:col+11] = [
+				rb' _______ ',
+				rb'/_______\\',
+			]
 		elif self.direction == "NE":
-			grid[row  ][col+8 :col+10] = "__"
-			grid[row+1][col+8 :col+11] = "\\ \\"
-			grid[row+2][col+9 :col+12] =  "\\ \\"
-			grid[row+3][col+10:col+13] =   "\\ \\"
-			grid[row+4][col+11:col+13] =    "\\/"
+			canvas[row:row+5, col+8:col+13] = [
+				rb'__   ',
+				rb'\ \  ',
+				rb' \ \ ',
+				rb'  \ \\',
+				rb'   \/',
+			]
 		elif self.direction == "SE":
-			grid[row+3][col+11:col+13] =    "/\\"
-			grid[row+4][col+10:col+13] =   "/ /"
-			grid[row+5][col+9 :col+12] =  "/ /"
-			grid[row+6][col+8 :col+11] = "/_/"
+			canvas[row+3:row+7, col+8:col+13] = [
+				rb'   /\\',
+				rb'  / /',
+				rb' / / ',
+				rb'/_/  ',
+			]
 		elif self.direction == "S":
-			grid[row+5][col+2:col+11] = "_________"
-			grid[row+6][col+2:col+11] = "\\_______/"
+			canvas[row+5:row+7, col+2:col+11] = [
+				rb'_________',
+				rb'\_______/',
+			]
 		elif self.direction == "SW":
-			grid[row+3][col  :col+2] = "/\\"
-			grid[row+4][col  :col+3] = "\\ \\"
-			grid[row+5][col+1:col+4] =  "\\ \\"
-			grid[row+6][col+2:col+5] =   "\\_\\"
+			canvas[row+3:row+7, col:col+5] = [
+				rb'/\   ',
+				rb'\ \  ',
+				rb' \ \ ',
+				rb'  \_\\',
+			]
 		elif self.direction == "NW":
-			grid[row  ][col+3:col+5] =    "__"
-			grid[row+1][col+2:col+5] =   "/ /"
-			grid[row+2][col+1:col+4] =  "/ /"
-			grid[row+3][col  :col+3] = "/ /"
-			grid[row+4][col  :col+2] = "\\/"
+			canvas[row:row+5, col:col+5] = [
+				rb'   __',
+				rb'  / /',
+				rb' / / ',
+				rb'/ /  ',
+				rb'\/   ',
+			]
 		else:
-			pass # error
+			raise ValueError('Invalid harbor direction: %s' % self.direction)
 
 
 ###########################################################
 #### File input
 ###########################################################
 
+def to_roll(c):
+	"""
+	Converts a roll identifier to a roll number.
+	2 -> 2
+	3 -> 3
+	4 -> 4
+	5 -> 5
+	6 -> 6
+	7 -> 7
+	8 -> 8
+	9 -> 9
+	0 -> 10
+	1 -> 11
+	t -> 12
+	"""
+	if c == "0":
+		return 10
+	elif c == "1":
+		return 11
+	elif c.isdigit():
+		return int(c)
+	elif c == "t":
+		return 12
+	else:
+		raise ValueError
 
 def read_board(filename):
 	"""
@@ -225,11 +268,19 @@ def read_board(filename):
 			'f': lambda: TerrainTile(terrain='Fields'),
 			'M': lambda: TerrainTile(terrain='Mountains'),
 			'D': lambda: TerrainTile(terrain='Desert'),
-			'O': lambda: TerrainTile(terrain='Ocean')
+			'O': lambda: TerrainTile(terrain='Sea'),
+			'G': lambda: TerrainTile(terrain='GoldField')
 		}.get(c, lambda: BadFormat())()
 
 	hexes = [[make_tile(row, col, c) for col, c in enumerate(line)]
 	         for row, line in enumerate(file)]
+
+	# number tiles
+	for row, line in enumerate(file):
+		for col, c in enumerate(line)[1::2]:
+			if not c.isspace() and hexes[row][col - 1].numbered:
+				hexes[row][col - 1].roll = to_roll(c)
+
 
 	return (hexes, random_terrain_tiles, random_harbors)
 
@@ -324,7 +375,7 @@ class GameBoard(object):
 
 			for row in self.board:
 				for tile in row:
-					if tile.numbered and tile.terrain not in ('Desert', 'Ocean'):
+					if tile.numbered and tile.terrain not in ('Desert', 'Sea'):
 						try:
 							tile.roll = rolls_scrambled.pop(0)
 						except IndexError:
@@ -378,16 +429,13 @@ class GameBoard(object):
 		                     for tiles in self.board
 		                     for col, tile in enumerate(tiles)])
 
-		canvas = [[" " for j in range(canvas_width)]
-		          for i in range(canvas_height)]
+		canvas = ASCIICanvas(canvas_height, canvas_width)
 
 		for row, cells in enumerate(self.board):
 			for col, cell in enumerate(cells):
 				cell.draw(row*3, col*10, canvas)
 
-		for row in canvas:
-			print(''.join(row))
-
+		print(canvas)
 
 ###########################################################
 #### Script body
